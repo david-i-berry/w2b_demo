@@ -24,8 +24,8 @@ LAUNCHTIME <- as.POSIXct(LAUNCHTIME)
 ###################################################################################
 # set color palatte to use, 25 colors (RAG, need more color blind friendly scale) #
 ###################################################################################
-pal <- colorRampPalette(c('red','yellow','green'))(25)
-pal2 <- colorRampPalette(c('red','yellow','green'))
+pal <- colorRampPalette(c('red','yellow','green'))(5)
+
 
 # helper functions
 # funciton to get list of known stations from box
@@ -58,11 +58,13 @@ ui <- bootstrapPage(
   absolutePanel(
     style = "background-color: white; opacity: 0.8",
     bottom = 50, right = "25%", draggable = FALSE, width = "50%",
+    div(
     sliderInput("datetime","Select hour", min=as.POSIXct("2022-03-11 12:00 UTC"),
                 max = LAUNCHTIME,
                 value = LAUNCHTIME,
                 step = 3600*3, width="100%",
                 ticks=FALSE, animate = animationOptions(interval = 250))
+    )
   ),
   absolutePanel(
     style = "background-color: white; opacity: 0.9",
@@ -86,7 +88,7 @@ server <- function(input, output, session) {
   output$map <- renderLeaflet({
     m <- leaflet() %>% addTiles() %>% addScaleBar(position = "bottomleft") %>%
       setView(lat = -13.8, lng = 34.5, zoom = 7)  %>%
-      addLegend("bottomright",colors=pal, labels=seq(0,24,1), title="Count per <br/>24 hour period", opacity = 1)
+      addLegend("bottomright",colors=pal, labels=c("0-3","4-5","6-7","8-23","24"), title="Count per <br/>24 hour period", opacity = 0.6)
     m
   })
   
@@ -110,7 +112,7 @@ server <- function(input, output, session) {
       nobs$count <- 0
     }
     # set color of the points to plot
-    cind <- nobs$count + 1
+    cind <- cut(nobs$count,c(0,3,5,7,23,47), include.lowest = TRUE,right = TRUE,labels=seq(1,5))
     popups <- paste0(
       'Station: <a href="',OSCARURL,nobs$wigos_id,'">',nobs$wigos_id,'</a><br/>Number of observations: ',nobs$count,'</a>'
     )

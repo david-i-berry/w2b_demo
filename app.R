@@ -24,7 +24,7 @@ LAUNCHTIME <- as.POSIXct(LAUNCHTIME)
 ###################################################################################
 # set color palatte to use, 25 colors (RAG, need more color blind friendly scale) #
 ###################################################################################
-pal <- colorRampPalette(c('red','yellow','green'))(5)
+pal <- colorRampPalette(c('red','yellow','green'))(7)
 
 
 # helper functions
@@ -88,7 +88,7 @@ server <- function(input, output, session) {
   output$map <- renderLeaflet({
     m <- leaflet() %>% addTiles() %>% addScaleBar(position = "bottomleft") %>%
       setView(lat = -13.8, lng = 34.5, zoom = 7)  %>%
-      addLegend("bottomright",colors=pal, labels=c("0-3","4-5","6-7","8-23","24"), title="Count per <br/>24 hour period", opacity = 0.6)
+      addLegend("bottomright",colors=pal, labels=c("0", "1-4", "5-8", "9-12", "13-16", "17-20", "21-24"), title="Count per <br/>24 hour period", opacity = 0.6)
     m
   })
   
@@ -112,7 +112,7 @@ server <- function(input, output, session) {
       nobs$count <- 0
     }
     # set color of the points to plot
-    cind <- cut(nobs$count,c(0,3,5,7,23,47), include.lowest = TRUE,right = TRUE,labels=seq(1,5))
+    cind <- cut(nobs$count,c(0,1,5,9,13,17,21,48), include.lowest = TRUE,right = TRUE,labels=seq(1,7))
     popups <- paste0(
       'Station: <a href="',OSCARURL,nobs$wigos_id,'">',nobs$wigos_id,'</a><br/>Number of observations: ',nobs$count,'</a>'
     )

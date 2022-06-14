@@ -25,6 +25,7 @@ LAUNCHTIME <- as.POSIXct(LAUNCHTIME)
 # set color palatte to use, 25 colors (RAG, need more color blind friendly scale) #
 ###################################################################################
 pal <- colorRampPalette(c('red','yellow','green'))(25)
+pal2 <- colorRampPalette(c('red','yellow','green'))
 
 # helper functions
 # funciton to get list of known stations from box
@@ -56,13 +57,19 @@ ui <- bootstrapPage(
   leafletOutput("map"),
   absolutePanel(
     style = "background-color: white; opacity: 0.8",
-    top = 50, right = "25%", draggable = FALSE, width = "50%",
-    sliderInput("datetime","Select hour", min=as.POSIXct("2022-03-11 12:00"),
+    bottom = 50, right = "25%", draggable = FALSE, width = "50%",
+    sliderInput("datetime","Select hour", min=as.POSIXct("2022-03-11 12:00 UTC"),
                 max = LAUNCHTIME,
                 value = LAUNCHTIME,
                 step = 3600*3, width="100%",
                 ticks=FALSE, animate = animationOptions(interval = 250))
+  ),
+  absolutePanel(
+    style = "background-color: white; opacity: 0.9",
+    top = 50, right = "25%", draggable = FALSE, width = "50%",
+    div(style="width:100%; text-align: center", htmlOutput("title") )
   )
+  
 )
 
 # setup back end
@@ -78,9 +85,15 @@ server <- function(input, output, session) {
   # generate base map
   output$map <- renderLeaflet({
     m <- leaflet() %>% addTiles() %>% addScaleBar(position = "bottomleft") %>%
-      setView(lat = -13.8, lng = 34.5, zoom = 7) 
+      setView(lat = -13.8, lng = 34.5, zoom = 7)  %>%
+      addLegend("bottomright",colors=pal, labels=seq(0,24,1), title="Count per <br/>24 hour period", opacity = 1)
     m
   })
+  
+  #observe({
+    output$title <- renderText(paste0('<h3 text-align="center">Number of observations during<br/>',format.POSIXct(input$datetime-86400,"%Y-%m-%d %H:00:00 UTC")," to ",
+                                      format.POSIXct(input$datetime,"%Y-%m-%d %H:00:00 UTC"), "</h3>"))
+  #})
   
   # observe and update map as slider changes
   observe({
@@ -98,14 +111,17 @@ server <- function(input, output, session) {
     }
     # set color of the points to plot
     cind <- nobs$count + 1
+    popups <- paste0(
+      'Station: <a href="',OSCARURL,nobs$wigos_id,'">',nobs$wigos_id,'</a><br/>Number of observations: ',nobs$count,'</a>'
+    )
     # now update the map
     proxy <- leafletProxy("map") %>% clearShapes()
     proxy <- proxy %>% addCircles(data=nobs, radius = 7.5E3,  # each circle is 7.5km in radius
                                   color='black', opacity = 0.6, 
                                   fillColor = pal[cind], fillOpacity = 0.6, 
                                   weight=0.5, layerId=nobs$wigos_id, 
-                                  popup = paste0('<h4><a href="',OSCARURL,nobs$wigos_id,'">',nobs$wigos_id,': ',nobs$count,'</a></h4>'))
-  })
+                                  popup = popups)
+    })
 
 }
 

@@ -1,0 +1,94 @@
+---
+title: "R WIS2box"
+output: html_notebook
+---
+This is an [R Markdown](http://rmarkdown.rstudio.com) example connecting to the WIS2box using the OAPI interface.
+
+First load libraries:
+```{r}
+# load libraries:
+library(sf)
+library(dplyr)
+library(tidyr)
+```
+Next parameterise the call to the WIS2box API.
+```{r}
+# set the base path for our service
+BASEURL <- 'http://localhost:8999/oapi'  # local host
+# now select the collection
+relPath <- '/collections/data.core.observations-surface-land.mw.FWCL.landFixed/items?'
+# add any filters we want
+filter  <- paste0("&name=non_coordinate_pressure")
+# limit number of results
+maxRecords <- paste0('limit=100000')
+```
+Next we can fetch the data with a simple call:
+```{r}
+# now fetch the data
+the_data <- read_sf(paste0(BASEURL,relPath,maxRecords,filter))
+```
+This returns the data in a data frame, we can use the usual functions to view and summarise the data, for example viewing the first few lines of the data frame:
+```{r}
+head(the_data)
+```
+Counting the number of observations ingested per station:
+```{r}
+table(the_data$wigos_station_identifier)
+```
+
+Count number of observations per day and plot:
+
+```{r}
+# first convert datetime to just date
+the_data$day <- format.POSIXct(the_data$resultTime, "%Y-%m-%d 12:00") %>% as.POSIXct()
+
+# next count number of observations per day
+counts_per_day <- the_data %>% as.data.frame() %>% group_by(day, wigos_station_identifier) %>% count() 
+
+# now plot
+g <- ggplot(counts_per_day, aes(x=day, y=n)) + geom_line(aes(color=wigos_station_identifier)) 
+g <- g + theme_bw() + labs(x="Date", y="Number of observations")
+g
+```
+We can also plot a time series of the data
+```{r}
+g <- ggplot(the_data, aes(x=resultTime, y=value)) + geom_line(aes(color=wigos_station_identifier))
+g <- g + theme_bw() + labs(x="Date", y="pressure (hPa)")
+g
+
+```
+This looks odd, but this is due to different elevations at the stations. When we plot the pressure reduced to mean sea level instead we see similar values.
+
+```{r}
+filter  <- paste0("&name=pressure_reduced_to_mean_sea_level")
+the_data <- read_sf(paste0(BASEURL,relPath,maxRecords,filter))
+g <- ggplot(the_data, aes(x=resultTime, y=value)) + geom_line(aes(color=wigos_station_identifier))
+g <- g + theme_bw() + labs(x="Date", y="pressure (hPa)")
+g
+
+```
+
+We can also pivot to a wider data frame to give a more 'taditional' view:
+
+```{r}
+params <- c("3hour_pressure_change",
+            "pressure_reduced_to_mean_sea_level", 
+            "non_coordinate_pressure",
+            "characteristic_of_pressure_tendancy",
+            "air_temperature", 
+            "dew_point_temperature","relative_humidity")
+filter  <- paste0("") # load all data
+the_data <- read_sf(paste0(BASEURL,relPath,maxRecords,filter))
+# subset to just a few parameters for demo purposes
+the_data <- subset(the_data, name %in% params)
+# order by date
+the_data <- the_data[order(the_data$resultTime),]
+# now pivot wider
+wide_df <- the_data %>% as.data.frame() %>% 
+  select(c(wigos_station_identifier, phenomenonTime, resultTime, name, units, value, geometry)) %>% 
+  pivot_wider(names_from=c(name,units), values_from = value)
+head(wide_df)
+```
+
+
+This short demo shows the benefits of building on web services and commonly used standards, with little effort required to load and visualise the data.
